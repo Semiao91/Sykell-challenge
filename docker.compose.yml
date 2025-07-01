@@ -1,0 +1,23 @@
+services:
+  db:
+    image: mysql:8.0
+    container_name: mysql-db
+    restart: always
+    env_file:
+      - .env
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+  go-app:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: sykell-go-api
+    depends_on:
+      - db
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
