@@ -2,6 +2,7 @@ package routes
 
 import (
 	"gin/controllers"
+	"gin/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -18,11 +19,11 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB) {
     }
     
     // Protected routes
-    // api := router.Group("/api")
-    // api.Use(middleware.AuthRequired())
-    // {
-    //     // Your protected routes here
-    //     api.GET("/urls", authController.Login)
-    //     api.POST("/urls", authController.Register)
-    // }
+    api := router.Group("/api/user")
+    api.Use(middleware.AuthRequired())
+    {
+        // Your protected routes here
+        api.GET("/urls", authController.Login)
+        api.POST("/urls", authController.Register)
+    }
 }

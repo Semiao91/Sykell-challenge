@@ -1,6 +1,6 @@
 import {z} from "zod";
 
-const registerSchema = z
+export const registerSchema = z
   .object({
     email: z.string().email({message: "Invalid email address"}),
     password: z
@@ -12,4 +12,7 @@ const registerSchema = z
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
+    path: ["confirmPassword"],
   });
+
+export type RegisterSchema = z.infer<typeof registerSchema>;
