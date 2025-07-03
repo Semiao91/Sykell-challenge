@@ -10,6 +10,7 @@ import (
 
 func SetupRoutes(router *gin.Engine, db *gorm.DB) {
     authController := &controllers.AuthController{DB: db}
+    scrapperController := &controllers.ScrapperController{DB: db}
     
     // Public routes
     auth := router.Group("/api/auth")
@@ -19,11 +20,10 @@ func SetupRoutes(router *gin.Engine, db *gorm.DB) {
     }
     
     // Protected routes
-    api := router.Group("/api/user")
-    api.Use(middleware.AuthRequired())
+    scrapper := router.Group("/api/scrapper")
+    scrapper.Use(middleware.AuthRequired())
     {
-        // Your protected routes here
-        api.GET("/urls", authController.Login)
-        api.POST("/urls", authController.Register)
+        scrapper.GET("/urls", scrapperController.GetUrls)
+        scrapper.POST("/urls", scrapperController.CreateUrl)
     }
 }
