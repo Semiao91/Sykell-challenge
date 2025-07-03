@@ -14,6 +14,7 @@ type ScrapperController struct {
 	DB *gorm.DB
 }
 
+// GetUrls retrieves all URLs for the authenticated user
 func (s *ScrapperController) GetUrls(c *gin.Context) {
 	userID := utils.GetUserID(c)
 
@@ -26,7 +27,8 @@ func (s *ScrapperController) GetUrls(c *gin.Context) {
 	c.JSON(http.StatusOK, urls)
 }
 
-func (s *ScrapperController) CreateUrl(c *gin.Context) {
+// AnalyzeUrl scrapes the provided URL and saves the analysis result
+func (s *ScrapperController) AnalyzeUrl(c *gin.Context) {
 	type RequestBody struct {
 		Url string `json:"url" binding:"required,url"`
 	}
@@ -47,17 +49,17 @@ func (s *ScrapperController) CreateUrl(c *gin.Context) {
 	}
 
 	url := models.Url{
-		UserID:          userID,
-		Url:             req.Url,
-		Title:           result.Title,
-		HtmlVersion:     result.HTMLVersion,
-		Status:          models.Complete,
-		InternalLinks:   int16(result.InternalLinks),
-		ExternalLinks:   int16(result.ExternalLinks),
-		BrokenLinks:     int16(len(result.BrokenLinks)),
-		HasLoginForm:    result.HasLoginForm,
-		HeadingCounts:   result.HeadingCounts,
-		AnalyzedAt:      time.Now(),
+		UserID:            userID,
+		Url:               req.Url,
+		Title:             result.Title,
+		HtmlVersion:       result.HTMLVersion,
+		Status:            models.Complete,
+		InternalLinks:     int16(result.InternalLinks),
+		ExternalLinks:     int16(result.ExternalLinks),
+		BrokenLinks:       int16(len(result.BrokenLinks)),
+		HasLoginForm:      result.HasLoginForm,
+		HeadingCounts:     result.HeadingCounts,
+		AnalyzedAt:        time.Now(),
 		BrokenLinkDetails: utils.MapBrokenLinks(result.BrokenLinks),
 	}
 
@@ -67,4 +69,23 @@ func (s *ScrapperController) CreateUrl(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, url)
+}
+
+// DeleteUrl deletes a URL by its ID for the authenticated user
+func (s *ScrapperController) DeleteUrl(c *gin.Context) {
+	urlID := c.Param("id")
+	userID := utils.GetUserID(c)
+
+	var url models.Url
+	if err := s.DB.Where("id = ? AND user_id = ?", urlID, userID).First(&url).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	if err := s.DB.Delete(&url).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete URL"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "URL deleted successfully"})
 }

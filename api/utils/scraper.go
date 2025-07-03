@@ -1,10 +1,10 @@
 package utils
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
-	"github.com/PuerkitoBio/goquery"
 	"github.com/gocolly/colly"
 )
 
@@ -28,6 +28,7 @@ func ScrapeUrl(url string) (*ScrapeResult, error) {
 		HeadingCounts: make(map[string]int),
 	}
 
+	log.Println("Starting scrape for URL:", result)
 	c := colly.NewCollector(
 		colly.MaxDepth(1),
 	)
@@ -39,7 +40,7 @@ func ScrapeUrl(url string) (*ScrapeResult, error) {
 	})
 
 	c.OnHTML("html", func(e *colly.HTMLElement) {
-		result.HTMLVersion = detectHTMLVersion(e.DOM)
+		result.HTMLVersion = detectHTMLVersionFromRaw(e.Request.URL.String())
 	})
 
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
@@ -73,7 +74,6 @@ func ScrapeUrl(url string) (*ScrapeResult, error) {
 		}
 	})
 
-	// Count headings
 	for _, tag := range []string{"h1", "h2", "h3", "h4", "h5", "h6"} {
 		t := tag
 		c.OnHTML(t, func(e *colly.HTMLElement) {
@@ -87,12 +87,4 @@ func ScrapeUrl(url string) (*ScrapeResult, error) {
 	}
 
 	return result, nil
-}
-
-func detectHTMLVersion(selection *goquery.Selection) string {
-	docType := selection.Nodes[0].FirstChild
-	if docType != nil && strings.Contains(strings.ToLower(docType.Data), "html") {
-		return "HTML5"
-	}
-	return "Unknown"
 }
