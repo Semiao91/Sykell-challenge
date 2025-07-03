@@ -1,8 +1,11 @@
+import { useScrape } from "@/hooks/useScrape"
+import type { UrlAnalysis } from "@/interfaces/url"
 import { Checkbox } from "@radix-ui/react-checkbox"
 import { Progress } from "@radix-ui/react-progress"
-import { AlertTriangle, Badge, ExternalLink, Play, Search, Square } from "lucide-react"
+import { AlertTriangle, ExternalLink, Play, Search, Square } from "lucide-react"
 import { useState } from "react"
 import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
+import { Badge } from "../atoms/badge"
 import { Button } from "../atoms/button"
 import { Card, CardContent, CardTitle } from "../atoms/card"
 import { Input } from "../atoms/input"
@@ -12,21 +15,7 @@ import { Header } from "../molecules/headder"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../molecules/table"
 import { CardHeader } from "../organisms/card"
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../organisms/chart"
-interface UrlAnalysis {
-    id: string
-    url: string
-    title: string
-    htmlVersion: string
-    status: "queued" | "running" | "completed" | "error"
-    progress: number
-    internalLinks: number
-    externalLinks: number
-    brokenLinks: number
-    headingCounts: { [key: string]: number }
-    hasLoginForm: boolean
-    brokenLinkDetails: { url: string; statusCode: number }[]
-    analyzedAt?: Date
-}
+
 
 const mockData: UrlAnalysis[] = [
     {
@@ -83,80 +72,41 @@ export const DashboardTemplate = () => {
     const [selectedUrls, setSelectedUrls] = useState<string[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedUrl, setSelectedUrl] = useState<UrlAnalysis | null>(null)
-    console.log("DashboardTemplate rendered with URLs:", urls)
+    const { urlsData, handleScrape } = useScrape()
+    console.log("Fetched URLs:", urlsData)
     const addUrl = () => {
-        if (newUrl.trim()) {
-            const newAnalysis: UrlAnalysis = {
-                id: Date.now().toString(),
-                url: newUrl.trim(),
-                title: "",
-                htmlVersion: "",
-                status: "queued",
-                progress: 0,
-                internalLinks: 0,
-                externalLinks: 0,
-                brokenLinks: 0,
-                headingCounts: {},
-                hasLoginForm: false,
-                brokenLinkDetails: [],
-            }
-            setUrls([...urls, newAnalysis])
-            setNewUrl("")
+        console.log("Adding URL:", newUrl)
+        try {
+            handleScrape({ url: newUrl })
+        } catch (error) {
+            console.error("Error adding URL:", error)
         }
+        // if (newUrl.trim()) {
+        //     const newAnalysis: UrlAnalysis = {
+        //         id: Date.now().toString(),
+        //         url: newUrl.trim(),
+        //         title: "",
+        //         htmlVersion: "",
+        //         status: "queued",
+        //         progress: 0,
+        //         internalLinks: 0,
+        //         externalLinks: 0,
+        //         brokenLinks: 0,
+        //         headingCounts: {},
+        //         hasLoginForm: false,
+        //         brokenLinkDetails: [],
+        //     }
+        //     setUrls([...urls, newAnalysis])
+        //     setNewUrl("")
+        // }
     }
 
     const startAnalysis = (id: string) => {
         setUrls(urls.map((url) => (url.id === id ? { ...url, status: "running" as const, progress: 0 } : url)))
-
-        // Simulate progress
-        const interval = setInterval(() => {
-            setUrls((currentUrls) =>
-                currentUrls.map((url) => {
-                    if (url.id === id && url.status === "running") {
-                        const newProgress = Math.min(url.progress + Math.random() * 20, 100)
-                        if (newProgress >= 100) {
-                            clearInterval(interval)
-                            return {
-                                ...url,
-                                status: "completed" as const,
-                                progress: 100,
-                                title: `Analyzed: ${url.url}`,
-                                htmlVersion: "HTML5",
-                                internalLinks: Math.floor(Math.random() * 50),
-                                externalLinks: Math.floor(Math.random() * 20),
-                                brokenLinks: Math.floor(Math.random() * 5),
-                                headingCounts: {
-                                    H1: Math.floor(Math.random() * 3) + 1,
-                                    H2: Math.floor(Math.random() * 8) + 2,
-                                    H3: Math.floor(Math.random() * 15) + 3,
-                                    H4: Math.floor(Math.random() * 10),
-                                    H5: Math.floor(Math.random() * 5),
-                                    H6: Math.floor(Math.random() * 3),
-                                },
-                                hasLoginForm: Math.random() > 0.5,
-                                analyzedAt: new Date(),
-                            }
-                        }
-                        return { ...url, progress: newProgress }
-                    }
-                    return url
-                }),
-            )
-        }, 500)
     }
 
     const stopAnalysis = (id: string) => {
         setUrls(urls.map((url) => (url.id === id ? { ...url, status: "queued" as const, progress: 0 } : url)))
-    }
-
-    const deleteSelected = () => {
-        setUrls(urls.filter((url) => !selectedUrls.includes(url.id)))
-        setSelectedUrls([])
-    }
-
-    const rerunSelected = () => {
-        selectedUrls.forEach((id) => startAnalysis(id))
-        setSelectedUrls([])
     }
 
     const filteredUrls = urls.filter(
@@ -331,22 +281,14 @@ export const DashboardTemplate = () => {
 
     return (
         <div className="container mx-auto p-6">
-            <div className="flex items-center justify-between mb-6">
-                <div>
-                    <Header title={"URL Analysis Dashboard"} subTitle={"Manage your website analyses"} />
-                </div>
-            </div>
-
+            <Header className="mb-6" title={"URL Analysis Dashboard"} subTitle={"Manage your website analyses"} />
             <Card className="mb-6">
                 <CardHeading title="Add New URL" subTitle="Enter a website URL to analyze" />
                 <CardBody
                     newUrl={newUrl} setNewUrl={setNewUrl} addUrl={addUrl} />
             </Card>
-
             <Card>
-
                 <CardHeading title="URL Analysis List" subTitle="View and manage your analyzed URLs" />
-
                 <CardContent>
                     <div className="flex items-center gap-4 mb-4">
                         <div className="relative flex-1">
@@ -359,7 +301,6 @@ export const DashboardTemplate = () => {
                             />
                         </div>
                     </div>
-
                     <div className="border rounded-lg">
                         <Table>
                             <TableHeader>

@@ -10,8 +10,12 @@ import (
 
 type User struct {
     gorm.Model
-    Email string `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+    Email    string `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
     Password string `gorm:"not null" json:"-"`
+
+    // One-to-many relationship with Url
+    Urls []Url `gorm:"foreignKey:UserID" json:"urls,omitempty"`
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

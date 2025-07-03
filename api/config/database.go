@@ -65,6 +65,8 @@ func MigrateDatabase() {
 
 	err := DB.AutoMigrate(
 		&models.User{},
+		&models.Url{},
+		&models.BrokenLinkDetail{},
 	)
 
 	if err != nil {
