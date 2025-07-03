@@ -1,39 +1,38 @@
 package main
 
 import (
-	"database/sql"
 	"gin/config"
-	"net/http"
+	"gin/routes"
+	"log"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
-var db *sql.DB
-
-
 func main() {
-
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	config.ConnectDatabase()
 	sqlDB, _ := config.DB.DB()
 	defer sqlDB.Close()
 
-	router.GET("/test-db", func(c *gin.Context) {
-		var result string
-		err := db.QueryRow("SELECT 'Hello from MySQL!' as message").Scan(&result)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "Database query failed",
-				"details": err.Error(),
-			})
-			return
-		}
+	config.MigrateDatabase()
 
-		c.JSON(http.StatusOK, gin.H{
-			"message": result,
-			"timestamp": "NOW()",
-		})
-	})
+	routes.SetupRoutes(router, config.DB)
 
 	router.Run(":8080")
 }

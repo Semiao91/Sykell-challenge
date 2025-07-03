@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"gin/models"
 	"gin/utils"
 	"log"
 	"time"
@@ -12,8 +13,6 @@ import (
 )
 
 var DB *gorm.DB
-
-
 
 func ConnectDatabase() {
 	var dbUser, dbPassword, dbName, dbHost, dbPort string
@@ -55,7 +54,6 @@ func ConnectDatabase() {
 		log.Fatal("Failed to ping database:", err)
 	}
 
-	// Configure connection pool
 	sqlDB.SetMaxIdleConns(10)
 	sqlDB.SetMaxOpenConns(100)
 	sqlDB.SetConnMaxLifetime(time.Hour)
@@ -64,6 +62,14 @@ func ConnectDatabase() {
 }
 
 func MigrateDatabase() {
-	// We'll import models here later
-	log.Println("Database migration completed!")
+
+	err := DB.AutoMigrate(
+		&models.User{},
+	)
+
+	if err != nil {
+		log.Fatal("Failed to migrate database:", err)
+	}
+
+	log.Println("Database migration completed successfully!")
 }

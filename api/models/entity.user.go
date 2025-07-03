@@ -2,12 +2,31 @@ package models
 
 import (
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
+
 type User struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	Name      string    `json:"name" gorm:"not null"`
-	Email     string    `json:"email" gorm:"uniqueIndex;not null"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+    gorm.Model
+    Email string `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
+    Password string `gorm:"not null" json:"-"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+func (u *User) HashPassword(password string) error {
+    bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+
+    if err != nil {
+        return err
+    }
+
+    u.Password = string(bytes)
+    return nil
+}
+
+func (u *User) CheckPassword(password string) error {
+    return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 }

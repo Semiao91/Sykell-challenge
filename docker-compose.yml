@@ -12,17 +12,17 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
-  go-app:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    container_name: sykell-go-api
-    depends_on:
-      - db
-    env_file:
-      - .env
-    ports:
-      - "8080:8080"
+  # go-app:
+  #   build:
+  #     context: ./api
+  #     dockerfile: Dockerfile
+  #   container_name: sykell-go-api
+  #   depends_on:
+  #     - db
+  #   env_file:
+  #     - .env
+  #   ports:
+  #     - "8080:8080"
 
 volumes:
   db_data:
