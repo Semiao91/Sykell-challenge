@@ -1,15 +1,15 @@
 export interface UrlAnalysis {
-  id: string;
+  ID: string;
   url: string;
   title: string;
-  htmlVersion: string;
-  status: "queued" | "running" | "completed" | "error";
+  html_version: string;
+  status: "queued" | "running" | "complete" | "error";
   progress: number;
-  internalLinks: number;
-  externalLinks: number;
-  brokenLinks: number;
-  headingCounts: {[key: string]: number};
-  hasLoginForm: boolean;
-  brokenLinkDetails: {url: string; statusCode: number}[];
+  internal_links: number;
+  external_links: number;
+  broken_links: number;
+  heading_counts: {[key: string]: number};
+  has_login_form: boolean;
+  broken_link_details: {url: string; status: number}[];
   analyzedAt?: Date;
 }

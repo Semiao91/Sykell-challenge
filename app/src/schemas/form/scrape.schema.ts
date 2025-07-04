@@ -5,3 +5,9 @@ export const scrapeSchema = z.object({
 });
 
 export type ScrapeSchema = z.infer<typeof scrapeSchema>;
+
+export const urlDeleteSchema = z.object({
+  id: z.string({message: "Invalid ID format"}),
+});
+
+export type UrlDeleteSchema = z.infer<typeof urlDeleteSchema>;

@@ -1,294 +1,124 @@
 import { useScrape } from "@/hooks/useScrape"
 import type { UrlAnalysis } from "@/interfaces/url"
-import { Checkbox } from "@radix-ui/react-checkbox"
-import { Progress } from "@radix-ui/react-progress"
-import { AlertTriangle, ExternalLink, Play, Search, Square } from "lucide-react"
+import { Search } from "lucide-react"
 import { useState } from "react"
-import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { Badge } from "../atoms/badge"
 import { Button } from "../atoms/button"
-import { Card, CardContent, CardTitle } from "../atoms/card"
+import { Card, CardContent } from "../atoms/card"
 import { Input } from "../atoms/input"
 import { CardBody } from "../molecules/cardContent"
 import { CardHeading } from "../molecules/cardHeadder"
 import { Header } from "../molecules/headder"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../molecules/table"
-import { CardHeader } from "../organisms/card"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "../organisms/chart"
+import { DashboardSkeleton } from "../organisms/dashboardSkeleton"
+import { QueueTable } from "../organisms/queueTable"
+import { UrlDetails } from "../organisms/urlDetails"
+import { UrlTable } from "../organisms/urlTable"
 
-
-const mockData: UrlAnalysis[] = [
-    {
-        id: "1",
-        url: "https://example.com",
-        title: "Example Domain",
-        htmlVersion: "HTML5",
-        status: "completed",
-        progress: 100,
-        internalLinks: 15,
-        externalLinks: 8,
-        brokenLinks: 2,
-        headingCounts: { H1: 1, H2: 4, H3: 8, H4: 2 },
-        hasLoginForm: false,
-        brokenLinkDetails: [
-            { url: "https://example.com/broken1", statusCode: 404 },
-            { url: "https://example.com/broken2", statusCode: 500 },
-        ],
-        analyzedAt: new Date(),
-    },
-    {
-        id: "2",
-        url: "https://github.com",
-        title: "GitHub: Let's build from here",
-        htmlVersion: "HTML5",
-        status: "running",
-        progress: 65,
-        internalLinks: 45,
-        externalLinks: 12,
-        brokenLinks: 0,
-        headingCounts: { H1: 2, H2: 6, H3: 12, H4: 5, H5: 3 },
-        hasLoginForm: true,
-        brokenLinkDetails: [],
-    },
-    {
-        id: "3",
-        url: "https://vercel.com",
-        title: "Vercel: Build and deploy the best web experiences",
-        htmlVersion: "HTML5",
-        status: "queued",
-        progress: 0,
-        internalLinks: 0,
-        externalLinks: 0,
-        brokenLinks: 0,
-        headingCounts: {},
-        hasLoginForm: false,
-        brokenLinkDetails: [],
-    },
-]
+interface QueuedUrl {
+    id: string
+    url: string
+}
 
 export const DashboardTemplate = () => {
-    const [urls, setUrls] = useState<UrlAnalysis[]>(mockData)
     const [newUrl, setNewUrl] = useState("")
-    const [selectedUrls, setSelectedUrls] = useState<string[]>([])
     const [searchTerm, setSearchTerm] = useState("")
     const [selectedUrl, setSelectedUrl] = useState<UrlAnalysis | null>(null)
-    const { urlsData, handleScrape } = useScrape()
-    console.log("Fetched URLs:", urlsData)
+
+    const { urlsData, handleScrape, urlsLoading, deleteUrl } = useScrape()
+    const [selectedUrls, setSelectedUrls] = useState<string[]>([])
+
+    const [queuedUrls, setQueuedUrls] = useState<QueuedUrl[]>([])
+    const [selectedQueuedIds, setSelectedQueuedIds] = useState<string[]>([])
+
+
+    // Skeleton
+    if (urlsLoading) return <DashboardSkeleton />
+
+    // Show details view
+    if (selectedUrl) {
+        return <UrlDetails selectedUrl={selectedUrl} onBack={() => setSelectedUrl(null)} />
+    }
+
+    console.log(urlsData)
     const addUrl = () => {
-        console.log("Adding URL:", newUrl)
-        try {
-            handleScrape({ url: newUrl })
-        } catch (error) {
-            console.error("Error adding URL:", error)
-        }
-        // if (newUrl.trim()) {
-        //     const newAnalysis: UrlAnalysis = {
-        //         id: Date.now().toString(),
-        //         url: newUrl.trim(),
-        //         title: "",
-        //         htmlVersion: "",
-        //         status: "queued",
-        //         progress: 0,
-        //         internalLinks: 0,
-        //         externalLinks: 0,
-        //         brokenLinks: 0,
-        //         headingCounts: {},
-        //         hasLoginForm: false,
-        //         brokenLinkDetails: [],
-        //     }
-        //     setUrls([...urls, newAnalysis])
-        //     setNewUrl("")
-        // }
+        if (!newUrl.trim()) return
+        const id = crypto.randomUUID()
+        setQueuedUrls([...queuedUrls, { id, url: newUrl.trim() }])
+        setNewUrl("")
     }
 
-    const startAnalysis = (id: string) => {
-        setUrls(urls.map((url) => (url.id === id ? { ...url, status: "running" as const, progress: 0 } : url)))
+    const handleDeleteSelected = () => {
+        setQueuedUrls(queuedUrls.filter((u) => !selectedQueuedIds.includes(u.id)))
+        setSelectedQueuedIds([])
+        setSelectedUrls([])
     }
 
-    const stopAnalysis = (id: string) => {
-        setUrls(urls.map((url) => (url.id === id ? { ...url, status: "queued" as const, progress: 0 } : url)))
+    const handleRun = (id: string) => {
+        const urlEntry = queuedUrls.find((u) => u.id === id)
+        if (!urlEntry) return
+        handleScrape({ url: urlEntry.url })
+        setQueuedUrls(queuedUrls.filter((u) => u.id !== id))
+        setSelectedQueuedIds(selectedQueuedIds.filter((sid) => sid !== id))
     }
 
-    const filteredUrls = urls.filter(
-        (url) =>
+    const handleDelete = (id: string) => {
+        setQueuedUrls(queuedUrls.filter((u) => u.id !== id))
+        setSelectedQueuedIds(selectedQueuedIds.filter((sid) => sid !== id))
+        console.log("Deleting URL with ID:", id)
+        deleteUrl(id.toString())
+    }
+
+    const handleSelectQueuedUrl = (id: string, checked: boolean) => {
+        setSelectedQueuedIds(checked ? [...selectedQueuedIds, id] : selectedQueuedIds.filter((sid) => sid !== id))
+    }
+
+    const handleSelectAllQueued = (checked: boolean) => {
+        setSelectedQueuedIds(checked ? queuedUrls.map((u) => u.id) : [])
+    }
+
+    const filteredUrls = urlsData.filter(
+        (url: UrlAnalysis) =>
             url.url.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            url.title.toLowerCase().includes(searchTerm.toLowerCase()),
+            url.title.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
-    const getStatusBadge = (status: UrlAnalysis["status"]) => {
-        const variants = {
-            queued: "secondary",
-            running: "default",
-            completed: "default",
-            error: "destructive",
-        } as const
-
-        const colors = {
-            queued: "bg-gray-100 text-gray-800",
-            running: "bg-blue-100 text-blue-800",
-            completed: "bg-green-100 text-green-800",
-            error: "bg-red-100 text-red-800",
-        }
-
-        return <Badge className={colors[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
+    const handleSelectUrl = (id: string, checked: boolean) => {
+        setSelectedUrls(checked ? [...selectedUrls, id] : selectedUrls.filter((sid) => sid !== id))
     }
 
-    const linkData = selectedUrl
-        ? [
-            { name: "Internal Links", value: selectedUrl.internalLinks, fill: "#3b82f6" },
-            { name: "External Links", value: selectedUrl.externalLinks, fill: "#10b981" },
-            { name: "Broken Links", value: selectedUrl.brokenLinks, fill: "#ef4444" },
-        ]
-        : []
-
-    const headingData = selectedUrl
-        ? Object.entries(selectedUrl.headingCounts).map(([level, count]) => ({
-            level,
-            count,
-        }))
-        : []
-
-    if (selectedUrl) {
-        return (
-            <div className="container mx-auto p-6">
-                <div className="flex items-center gap-4 mb-6">
-                    <Button variant="outline" onClick={() => setSelectedUrl(null)}>
-                        ← Back to Dashboard
-                    </Button>
-                    <div>
-                        <h1 className="text-2xl font-bold">{selectedUrl.title || selectedUrl.url}</h1>
-                        <p className="text-muted-foreground">{selectedUrl.url}</p>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">HTML Version</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{selectedUrl.htmlVersion}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Total Links</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{selectedUrl.internalLinks + selectedUrl.externalLinks}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Broken Links</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold text-red-600">{selectedUrl.brokenLinks}</div>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">Login Form</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-bold">{selectedUrl.hasLoginForm ? "✓" : "✗"}</div>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Link Distribution</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ChartContainer
-                                config={{
-                                    internal: { label: "Internal Links", color: "#3b82f6" },
-                                    external: { label: "External Links", color: "#10b981" },
-                                    broken: { label: "Broken Links", color: "#ef4444" },
-                                }}
-                                className="h-[300px]"
-                            >
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={linkData}
-                                            cx="50%"
-                                            cy="50%"
-                                            outerRadius={80}
-                                            dataKey="value"
-                                            label={({ name, value }) => `${name}: ${value}`}
-                                        >
-                                            {linkData.map((entry, index) => (
-                                                <Cell key={`cell-${index}`} fill={entry.fill} />
-                                            ))}
-                                        </Pie>
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                    </PieChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Heading Structure</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ChartContainer
-                                config={{
-                                    count: { label: "Count", color: "#3b82f6" },
-                                }}
-                                className="h-[300px]"
-                            >
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={headingData}>
-                                        <XAxis dataKey="level" />
-                                        <YAxis />
-                                        <Bar dataKey="count" fill="#3b82f6" />
-                                        <ChartTooltip content={<ChartTooltipContent />} />
-                                    </BarChart>
-                                </ResponsiveContainer>
-                            </ChartContainer>
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {selectedUrl.brokenLinks > 0 && (
-                    <Card className="mt-6">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <AlertTriangle className="h-5 w-5 text-red-500" />
-                                Broken Links
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="space-y-2">
-                                {selectedUrl.brokenLinkDetails.map((link, index) => (
-                                    <div key={index} className="flex items-center justify-between p-2 border rounded">
-                                        <span className="font-mono text-sm">{link.url}</span>
-                                        <Badge>{link.statusCode}</Badge>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-        )
+    const handleSelectAll = (checked: boolean) => {
+        setSelectedUrls(checked ? filteredUrls.map((url: UrlAnalysis) => url.ID) : [])
     }
+
+
 
     return (
-        <div className="container mx-auto p-6">
+        <div className="container pt-20 mx-auto p-6">
             <Header className="mb-6" title={"URL Analysis Dashboard"} subTitle={"Manage your website analyses"} />
+
             <Card className="mb-6">
                 <CardHeading title="Add New URL" subTitle="Enter a website URL to analyze" />
-                <CardBody
-                    newUrl={newUrl} setNewUrl={setNewUrl} addUrl={addUrl} />
+                <CardBody newUrl={newUrl} setNewUrl={setNewUrl} addUrl={addUrl} />
             </Card>
+
+            <Card className="mb-6">
+                <CardHeading title="URL Analysis Queue" subTitle="Add a URL to the analysis queue..." />
+                <CardContent>
+                    <div className="border rounded-lg">
+                        <QueueTable
+                            urls={queuedUrls}
+                            selectedUrls={selectedQueuedIds}
+                            onSelectUrl={handleSelectQueuedUrl}
+                            onSelectAll={handleSelectAllQueued}
+                            onRun={handleRun}
+                            onDelete={handleDeleteSelected}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeading title="URL Analysis List" subTitle="View and manage your analyzed URLs" />
+                <Button variant="outline">Delete URLs</Button>
                 <CardContent>
                     <div className="flex items-center gap-4 mb-4">
                         <div className="relative flex-1">
@@ -302,115 +132,14 @@ export const DashboardTemplate = () => {
                         </div>
                     </div>
                     <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-12">
-                                        <Checkbox
-                                            checked={selectedUrls.length === filteredUrls.length && filteredUrls.length > 0}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedUrls(filteredUrls.map((url) => url.id))
-                                                } else {
-                                                    setSelectedUrls([])
-                                                }
-                                            }}
-                                        />
-                                    </TableHead>
-                                    <TableHead>URL</TableHead>
-                                    <TableHead>Title</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead>HTML Version</TableHead>
-                                    <TableHead>Internal Links</TableHead>
-                                    <TableHead>External Links</TableHead>
-                                    <TableHead>Broken Links</TableHead>
-                                    <TableHead>Login Form</TableHead>
-                                    <TableHead>Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredUrls.map((url) => (
-                                    <TableRow
-                                        key={url.id}
-                                        className="cursor-pointer hover:bg-muted/50"
-                                        onClick={() => url.status === "completed" && setSelectedUrl(url)}
-                                    >
-                                        <TableCell>
-                                            <Checkbox
-                                                checked={selectedUrls.includes(url.id)}
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) {
-                                                        setSelectedUrls([...selectedUrls, url.id])
-                                                    } else {
-                                                        setSelectedUrls(selectedUrls.filter((id) => id !== url.id))
-                                                    }
-                                                }}
-                                                onClick={(e) => e.stopPropagation()}
-                                            />
-                                        </TableCell>
-                                        <TableCell className="font-mono text-sm max-w-xs truncate">{url.url}</TableCell>
-                                        <TableCell className="max-w-xs truncate">{url.title || "-"}</TableCell>
-                                        <TableCell>
-                                            <div className="space-y-1">
-                                                {getStatusBadge(url.status)}
-                                                {url.status === "running" && <Progress value={url.progress} className="w-20" />}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{url.htmlVersion || "-"}</TableCell>
-                                        <TableCell>{url.internalLinks}</TableCell>
-                                        <TableCell>{url.externalLinks}</TableCell>
-                                        <TableCell>
-                                            {url.brokenLinks > 0 ? (
-                                                <span className="text-red-600 font-medium">{url.brokenLinks}</span>
-                                            ) : (
-                                                url.brokenLinks
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{url.hasLoginForm ? "✓" : "✗"}</TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-1">
-                                                {url.status === "queued" && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            startAnalysis(url.id)
-                                                        }}
-                                                    >
-                                                        <Play className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                                {url.status === "running" && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            stopAnalysis(url.id)
-                                                        }}
-                                                    >
-                                                        <Square className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                                {url.status === "completed" && (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation()
-                                                            setSelectedUrl(url)
-                                                        }}
-                                                    >
-                                                        <ExternalLink className="h-3 w-3" />
-                                                    </Button>
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                        <UrlTable
+                            onDelete={handleDelete}
+                            urls={!urlsLoading ? filteredUrls : []}
+                            selectedUrls={selectedUrls}
+                            onSelectUrl={handleSelectUrl}
+                            onSelectAll={handleSelectAll}
+                            onView={setSelectedUrl}
+                        />
                     </div>
                 </CardContent>
             </Card>
